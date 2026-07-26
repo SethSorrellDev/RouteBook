@@ -5,7 +5,6 @@ import com.seth.routebook.domain.Route;
 import com.seth.routebook.domain.Stop;
 import com.seth.routebook.dto.StopDto;
 import com.seth.routebook.exception.ResourceNotFoundException;
-import com.seth.routebook.repository.LocationRepository;
 import com.seth.routebook.repository.StopRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,7 @@ public class StopService {
 
     private final StopRepository stopRepository;
     private final RouteService routeService;
-    private final LocationRepository locationRepository;
+    private final LocationService locationService;
 
     public List<StopDto> findAllForRoute(Long routeId) {
         // Throws ResourceNotFoundException if the route itself doesn't exist,
@@ -32,9 +31,7 @@ public class StopService {
 
     public StopDto create(Long routeId, StopDto request) {
         Route route = routeService.getEntityOrThrow(routeId);
-        Location location = locationRepository.findById(request.locationId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "No location found with id " + request.locationId()));
+        Location location = locationService.getEntityOrThrow(request.locationId());
 
         Stop stop = new Stop();
         stop.setCustomerName(request.customerName());
