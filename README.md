@@ -39,10 +39,17 @@ Companion frontend: [routebook-frontend](../routebook-frontend) (React 18 + Type
 | 3 | Service layer, validation, global error handling | Done |
 | 4 | Cloudflare R2 file attachments | Done — fully verified end-to-end against a live bucket |
 | 5–6 | React frontend | Done — see [routebook-frontend](../routebook-frontend) |
-| 7 | Documentation, GitHub publish | In progress |
+| 7 | Documentation, automated tests, GitHub publish | Done |
+
+## Testing
+
+19 automated tests: unit tests for the Route/Stop XOR business rule and file upload validation (content-type/size, with mocked R2 calls — no network access needed), plus integration tests exercising the full API surface (happy paths, 404s, validation errors) against a real Spring context and test H2 database.
+
+```bash
+./mvnw test
+```
 
 ## Known limitations
 
 - No authentication/authorization yet — anyone with API access can read and write all data
 - H2 is in-memory (`ddl-auto=create-drop`); all data resets on every restart. PostgreSQL migration is planned for production.
-- No automated test suite yet — the project has been verified through manual `curl` testing and browser walkthroughs, not JUnit tests

@@ -4,7 +4,7 @@
 
 - **Java**: JDK 21 or newer. Developed and tested against OpenJDK 25 as the runtime, with `maven.compiler.release=21` set in `pom.xml` so the code stays on Java 21 language features. If your distro's package repos don't offer JDK 21 directly (this happened on Fedora 44/Asahi Remix, aarch64), a newer JDK works fine as a runtime as long as the POM's release target stays at 21.
 - **Maven**: 3.9+ (bundled Maven Wrapper — `./mvnw` — works without a system-wide Maven install)
-- **Cloudflare R2 account** — only required if you want file attachments to actually work; the rest of the API runs fine without it (see "Running without R2" below)
+- **Cloudflare R2 account** — only required if you want file attachments to actually work; the rest of the API runs fine without it (see "Running without R2" below). Not required at all to run the test suite.
 
 ## Clone and build
 
@@ -16,7 +16,7 @@ cd RouteBook
 
 ## Environment variables
 
-Four environment variables are required at runtime for the Cloudflare R2 integration. **These must never be committed to a file in this repo** — always set them as shell environment variables.
+Four environment variables are required at **runtime** for the Cloudflare R2 integration. **These must never be committed to a file in this repo** — always set them as shell environment variables. They are not required to run the test suite (see Testing below).
 
 ```bash
 export R2_ACCESS_KEY_ID="your-r2-access-key-id"
@@ -63,7 +63,16 @@ While the app is running, visit `http://localhost:8080/h2-console`. On the login
 
 ## Testing
 
-There is currently no automated test suite — `RouteBookApplicationTests.java` is the default Spring Initializr context-load test and nothing more. The API has been verified through manual `curl` testing (documented informally during development) and through the companion React frontend. Adding JUnit/MockMvc tests is a natural next step.
+```bash
+./mvnw test
+```
+
+19 automated tests, no environment variables or Cloudflare account required — `src/test/resources/application.properties` overrides the main config with a separate test H2 database and dummy R2 values, since Spring needs *some* value for the R2 config properties to build its context even though no test actually calls real R2.
+
+Coverage:
+- **`KnowledgeEntryServiceTest`** — unit tests for the Route/Stop XOR business rule (the single most important rule in the app)
+- **`AttachmentServiceTest`** — unit tests for content-type/size validation, with `S3Client`/`S3Presigner` mocked out entirely, so no real R2 calls happen
+- **`RouteBookApiIntegrationTest`** — full-stack integration tests via `MockMvc`, covering happy paths, 404s, and validation errors across drivers, routes, stops, locations, and knowledge entries
 
 ## Common issues
 
