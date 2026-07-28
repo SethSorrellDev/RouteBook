@@ -1,6 +1,9 @@
 # RouteBook
 
-**Live API**: https://routebook-da3w.onrender.com/api/drivers (hosted on Render's free tier - spins down after 15 minutes of inactivity, so the first request after idle time may take 30-60 seconds to wake up)
+**Live app**: https://routebook-frontend.onrender.com
+**Live API**: https://routebook-da3w.onrender.com/api/drivers
+
+Both hosted on Render's free tier - services spin down after 15 minutes of inactivity, so the first request after idle time may take 30-60 seconds to wake up.
 
 RouteBook is an institutional-knowledge management system for Cintas Service Sales Representative (SSR) routes — a digital replacement for the sticky notes, texts, and tribal knowledge that carry gate codes, dock hazards, parking rules, and access instructions between drivers when a route changes hands.
 
