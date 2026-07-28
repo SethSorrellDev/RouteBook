@@ -25,6 +25,15 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        // Idempotent guard: on a persistent database (Postgres in
+        // production), this prevents re-seeding duplicate rows every time
+        // the app restarts. H2 in dev recreates the schema fresh anyway
+        // (ddl-auto=create-drop), so this check is a no-op there.
+        if (driverRepository.count() > 0) {
+            System.out.println("=== DataSeeder: existing data found, skipping seed ===");
+            return;
+        }
+
         // Placeholder driver - fictional name for portfolio/demo purposes
         Driver driver = new Driver();
         driver.setEmployeeId("EMP-1001");
