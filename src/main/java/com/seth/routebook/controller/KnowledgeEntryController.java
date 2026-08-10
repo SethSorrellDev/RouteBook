@@ -32,4 +32,15 @@ public class KnowledgeEntryController {
     public ResponseEntity<KnowledgeEntryDto> create(@Valid @RequestBody KnowledgeEntryDto request) {
         return ResponseEntity.ok(knowledgeEntryService.create(request));
     }
+
+    @PutMapping("/{id}")
+    public KnowledgeEntryDto update(@PathVariable Long id, @Valid @RequestBody KnowledgeEntryDto request) {
+        return knowledgeEntryService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        knowledgeEntryService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
 }

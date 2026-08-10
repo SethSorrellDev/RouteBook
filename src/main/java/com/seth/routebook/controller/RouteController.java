@@ -30,4 +30,15 @@ public class RouteController {
     public ResponseEntity<RouteDto> create(@Valid @RequestBody RouteDto request) {
         return ResponseEntity.ok(routeService.create(request));
     }
+
+    @PutMapping("/{id}")
+    public RouteDto update(@PathVariable Long id, @Valid @RequestBody RouteDto request) {
+        return routeService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        routeService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
 }
