@@ -11,6 +11,7 @@ import com.seth.routebook.repository.RouteRepository;
 import com.seth.routebook.repository.StopRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -73,6 +74,7 @@ public class RouteService {
      * Stops themselves are deleted automatically by JPA's existing
      * cascade=ALL/orphanRemoval on Route.stops once the route is removed.
      */
+    @Transactional
     public void delete(Long id) {
         Route route = getEntityOrThrow(id);
 

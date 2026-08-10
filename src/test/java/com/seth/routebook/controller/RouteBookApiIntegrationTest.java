@@ -184,19 +184,10 @@ class RouteBookApiIntegrationTest {
                 "state", "IN",
                 "zipCode", "46901"
         );
-
-        String locationResponse = mockMvc.perform(post("/api/locations")
-                        .with(httpBasic("test-admin", "test-password"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(newLocation)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        int locationId = objectMapper.readTree(locationResponse).get("id").asInt();
-
         Map<String, Object> newStop = Map.of(
                 "customerName", "Test Customer",
                 "sequenceOrder", 99,
-                "locationId", locationId
+                "location", newLocation
         );
 
         String stopResponse = mockMvc.perform(post("/api/routes/1/stops")
@@ -290,15 +281,8 @@ class RouteBookApiIntegrationTest {
 
         Map<String, Object> newLocation = Map.of(
                 "addressLine1", "1 Delete Test Rd", "city", "Kokomo", "state", "IN", "zipCode", "46901");
-        String locationResponse = mockMvc.perform(post("/api/locations")
-                        .with(httpBasic("test-admin", "test-password"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(newLocation)))
-                .andReturn().getResponse().getContentAsString();
-        int locationId = objectMapper.readTree(locationResponse).get("id").asInt();
-
         Map<String, Object> newStop = Map.of(
-                "customerName", "Delete Test Stop", "sequenceOrder", 1, "locationId", locationId);
+                "customerName", "Delete Test Stop", "sequenceOrder", 1, "location", newLocation);
         String stopResponse = mockMvc.perform(post("/api/routes/" + routeId + "/stops")
                         .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -339,21 +323,15 @@ class RouteBookApiIntegrationTest {
     void updateStop_changesCustomerNameAndSequenceOrder() throws Exception {
         Map<String, Object> newLocation = Map.of(
                 "addressLine1", "2 Update Test Rd", "city", "Kokomo", "state", "IN", "zipCode", "46901");
-        String locationResponse = mockMvc.perform(post("/api/locations")
-                        .with(httpBasic("test-admin", "test-password"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(newLocation)))
-                .andReturn().getResponse().getContentAsString();
-        int locationId = objectMapper.readTree(locationResponse).get("id").asInt();
-
         Map<String, Object> newStop = Map.of(
-                "customerName", "Original Name", "sequenceOrder", 5, "locationId", locationId);
+                "customerName", "Original Name", "sequenceOrder", 5, "location", newLocation);
         String stopResponse = mockMvc.perform(post("/api/routes/1/stops")
                         .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newStop)))
                 .andReturn().getResponse().getContentAsString();
         int stopId = objectMapper.readTree(stopResponse).get("id").asInt();
+        int locationId = objectMapper.readTree(stopResponse).get("locationId").asInt();
 
         Map<String, Object> updateRequest = Map.of(
                 "customerName", "Renamed Customer", "sequenceOrder", 9, "locationId", locationId);
@@ -370,15 +348,8 @@ class RouteBookApiIntegrationTest {
     void deleteStop_cascadesToItsKnowledgeEntries() throws Exception {
         Map<String, Object> newLocation = Map.of(
                 "addressLine1", "3 Delete Test Rd", "city", "Kokomo", "state", "IN", "zipCode", "46901");
-        String locationResponse = mockMvc.perform(post("/api/locations")
-                        .with(httpBasic("test-admin", "test-password"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(newLocation)))
-                .andReturn().getResponse().getContentAsString();
-        int locationId = objectMapper.readTree(locationResponse).get("id").asInt();
-
         Map<String, Object> newStop = Map.of(
-                "customerName", "Stop To Delete", "sequenceOrder", 1, "locationId", locationId);
+                "customerName", "Stop To Delete", "sequenceOrder", 1, "location", newLocation);
         String stopResponse = mockMvc.perform(post("/api/routes/1/stops")
                         .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)

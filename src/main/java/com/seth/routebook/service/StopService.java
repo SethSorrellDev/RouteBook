@@ -4,12 +4,15 @@ import com.seth.routebook.domain.KnowledgeEntry;
 import com.seth.routebook.domain.Location;
 import com.seth.routebook.domain.Route;
 import com.seth.routebook.domain.Stop;
+import com.seth.routebook.dto.CreateStopRequest;
 import com.seth.routebook.dto.StopDto;
 import com.seth.routebook.exception.ResourceNotFoundException;
 import com.seth.routebook.repository.KnowledgeEntryRepository;
+import com.seth.routebook.repository.LocationRepository;
 import com.seth.routebook.repository.StopRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -20,12 +23,11 @@ public class StopService {
     private final StopRepository stopRepository;
     private final RouteService routeService;
     private final LocationService locationService;
+    private final LocationRepository locationRepository;
     private final KnowledgeEntryRepository knowledgeEntryRepository;
     private final AttachmentService attachmentService;
 
     public List<StopDto> findAllForRoute(Long routeId) {
-        // Throws ResourceNotFoundException if the route itself doesn't exist,
-        // so callers get a clear 404 rather than a silently empty list.
         routeService.getEntityOrThrow(routeId);
         return stopRepository.findByRouteId(routeId).stream()
                 .map(this::toDto)
@@ -36,15 +38,34 @@ public class StopService {
         return toDto(getEntityOrThrow(id));
     }
 
-    public StopDto create(Long routeId, StopDto request) {
+    /**
+     * Creates the Location and the Stop together in one transaction.
+     * Previously the frontend made two separate API calls (create
+     * Location, then create Stop) - if the second failed for any
+     * reason, the Location was left orphaned with nothing pointing at
+     * it. Wrapping both writes in @Transactional means a failure at
+     * either step rolls back both, so an orphaned Location is no
+     * longer possible.
+     */
+    @Transactional
+    public StopDto create(Long routeId, CreateStopRequest request) {
         Route route = routeService.getEntityOrThrow(routeId);
-        Location location = locationService.getEntityOrThrow(request.locationId());
+
+        Location location = new Location();
+        location.setAddressLine1(request.location().addressLine1());
+        location.setAddressLine2(request.location().addressLine2());
+        location.setCity(request.location().city());
+        location.setState(request.location().state());
+        location.setZipCode(request.location().zipCode());
+        location.setLatitude(request.location().latitude());
+        location.setLongitude(request.location().longitude());
+        Location savedLocation = locationRepository.save(location);
 
         Stop stop = new Stop();
         stop.setCustomerName(request.customerName());
         stop.setSequenceOrder(request.sequenceOrder());
         stop.setRoute(route);
-        stop.setLocation(location);
+        stop.setLocation(savedLocation);
 
         Stop saved = stopRepository.save(stop);
         return toDto(saved);
@@ -70,7 +91,12 @@ public class StopService {
     /**
      * Deleting a stop cascades to every knowledge entry that targets it,
      * and each of those entries' attachments (R2 object + DB row).
+     * @Transactional ensures the DB-side cascade (entry deletions + stop
+     * deletion) commits or rolls back as one unit; the R2 object deletes
+     * happen outside the DB transaction boundary since they're calls to
+     * an external service, not something a JPA transaction can roll back.
      */
+    @Transactional
     public void delete(Long id) {
         Stop stop = getEntityOrThrow(id);
 

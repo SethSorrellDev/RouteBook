@@ -1,5 +1,6 @@
 package com.seth.routebook.controller;
 
+import com.seth.routebook.dto.CreateStopRequest;
 import com.seth.routebook.dto.StopDto;
 import com.seth.routebook.service.StopService;
 import jakarta.validation.Valid;
@@ -22,7 +23,7 @@ public class StopController {
     }
 
     @PostMapping
-    public ResponseEntity<StopDto> create(@PathVariable Long routeId, @Valid @RequestBody StopDto request) {
+    public ResponseEntity<StopDto> create(@PathVariable Long routeId, @Valid @RequestBody CreateStopRequest request) {
         return ResponseEntity.ok(stopService.create(routeId, request));
     }
 }
