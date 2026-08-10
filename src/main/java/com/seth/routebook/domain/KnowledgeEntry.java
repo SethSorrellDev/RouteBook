@@ -34,9 +34,14 @@ public class KnowledgeEntry {
     @Column(nullable = false)
     private String title;
 
+    // Explicit TEXT column instead of @Lob - Hibernate's default @Lob
+    // mapping for a String field is CLOB on H2 but bytea (binary) on
+    // Postgres, which silently broke LOWER()/LIKE queries in production
+    // ("function lower(bytea) does not exist") even though the same code
+    // worked fine against H2 in every test. An explicit TEXT column type
+    // is unambiguous on both databases.
     @NotBlank
-    @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String body;
 
     @NotNull

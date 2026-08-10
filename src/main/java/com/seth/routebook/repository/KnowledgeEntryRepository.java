@@ -20,15 +20,13 @@ public interface KnowledgeEntryRepository extends JpaRepository<KnowledgeEntry, 
      * in a Java stream). All three filter params are optional; passing
      * null for any of them skips that condition entirely.
      */
-    // k.body is @Lob (CLOB) - H2's LOWER() function rejects a CLOB
-    // argument directly, so it must be CAST to a string first. This
-    // only surfaced once search became a real DB query instead of a
-    // Java-side .toLowerCase() call, which never cared about SQL types.
+    // body is a plain TEXT column (see KnowledgeEntry.java), so LOWER()
+    // works directly here without any CAST - no more LOB/dialect quirks.
     @Query("SELECT k FROM KnowledgeEntry k WHERE " +
            "(:routeId IS NULL OR k.route.id = :routeId) AND " +
            "(:stopId IS NULL OR k.stop.id = :stopId) AND " +
            "(:query IS NULL OR LOWER(k.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "OR LOWER(CAST(k.body AS string)) LIKE LOWER(CONCAT('%', :query, '%')))")
+           "OR LOWER(k.body) LIKE LOWER(CONCAT('%', :query, '%')))")
     List<KnowledgeEntry> search(
             @Param("routeId") Long routeId,
             @Param("stopId") Long stopId,
