@@ -10,16 +10,19 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * End-to-end integration tests across the core API surface (drivers,
  * routes, stops, locations, knowledge entries), run against a real
- * Spring context and the test H2 database seeded by DataSeeder. This
- * automates what had previously been verified via manual curl testing
- * throughout development. Attachment upload is intentionally excluded -
- * see AttachmentServiceTest for that coverage with mocked R2 calls.
+ * Spring context and the test H2 database seeded by DataSeeder. GET
+ * requests remain public; every POST is authenticated with the test
+ * admin credentials configured in src/test/resources/application.properties,
+ * matching the app's public-read/authenticated-write security model.
+ * Attachment upload is intentionally excluded - see AttachmentServiceTest
+ * for that coverage with mocked R2 calls.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -48,6 +51,39 @@ class RouteBookApiIntegrationTest {
     }
 
     @Test
+    void createDriver_withoutCredentials_returns401() throws Exception {
+        Map<String, Object> newDriver = Map.of(
+                "employeeId", "EMP-9002",
+                "firstName", "No",
+                "lastName", "Auth",
+                "email", "no.auth@example.com"
+        );
+
+        mockMvc.perform(post("/api/drivers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(newDriver)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.message").value("Authentication required for this operation"));
+    }
+
+    @Test
+    void createDriver_withWrongCredentials_returns401() throws Exception {
+        Map<String, Object> newDriver = Map.of(
+                "employeeId", "EMP-9003",
+                "firstName", "Wrong",
+                "lastName", "Password",
+                "email", "wrong@example.com"
+        );
+
+        mockMvc.perform(post("/api/drivers")
+                        .with(httpBasic("test-admin", "not-the-real-password"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(newDriver)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createDriver_thenFetchById_succeeds() throws Exception {
         Map<String, Object> newDriver = Map.of(
                 "employeeId", "EMP-9001",
@@ -57,6 +93,7 @@ class RouteBookApiIntegrationTest {
         );
 
         String response = mockMvc.perform(post("/api/drivers")
+                        .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newDriver)))
                 .andExpect(status().isOk())
@@ -79,6 +116,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/routes")
+                        .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newRoute)))
                 .andExpect(status().isNotFound())
@@ -96,6 +134,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/knowledge-entries")
+                        .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badEntry)))
                 .andExpect(status().isBadRequest())
@@ -112,6 +151,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/knowledge-entries")
+                        .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badEntry)))
                 .andExpect(status().isBadRequest())
@@ -128,6 +168,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/knowledge-entries")
+                        .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badEntry)))
                 .andExpect(status().isBadRequest())
@@ -145,6 +186,7 @@ class RouteBookApiIntegrationTest {
         );
 
         String locationResponse = mockMvc.perform(post("/api/locations")
+                        .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newLocation)))
                 .andExpect(status().isOk())
@@ -158,6 +200,7 @@ class RouteBookApiIntegrationTest {
         );
 
         String stopResponse = mockMvc.perform(post("/api/routes/1/stops")
+                        .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newStop)))
                 .andExpect(status().isOk())
@@ -173,6 +216,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/knowledge-entries")
+                        .with(httpBasic("test-admin", "test-password"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newEntry)))
                 .andExpect(status().isOk())
