@@ -19,8 +19,9 @@ public class KnowledgeEntryController {
     @GetMapping
     public List<KnowledgeEntryDto> getFiltered(
             @RequestParam(required = false) Long routeId,
-            @RequestParam(required = false) Long stopId) {
-        return knowledgeEntryService.findFiltered(routeId, stopId);
+            @RequestParam(required = false) Long stopId,
+            @RequestParam(required = false) String q) {
+        return knowledgeEntryService.findFiltered(routeId, stopId, q);
     }
 
     @GetMapping("/{id}")

@@ -21,10 +21,12 @@ public class KnowledgeEntryService {
     private final StopService stopService;
     private final AttachmentService attachmentService;
 
-    public List<KnowledgeEntryDto> findFiltered(Long routeId, Long stopId) {
-        return knowledgeEntryRepository.findAll().stream()
-                .filter(ke -> routeId == null || (ke.getRoute() != null && ke.getRoute().getId().equals(routeId)))
-                .filter(ke -> stopId == null || (ke.getStop() != null && ke.getStop().getId().equals(stopId)))
+    // Blank query strings are treated the same as no query at all -
+    // the repository query's "(:query IS NULL OR ...)" guard skips the
+    // search condition entirely when this is null.
+    public List<KnowledgeEntryDto> findFiltered(Long routeId, Long stopId, String query) {
+        String normalizedQuery = (query == null || query.isBlank()) ? null : query.trim();
+        return knowledgeEntryRepository.search(routeId, stopId, normalizedQuery).stream()
                 .map(this::toDto)
                 .toList();
     }

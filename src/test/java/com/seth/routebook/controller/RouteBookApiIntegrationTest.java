@@ -434,4 +434,32 @@ class RouteBookApiIntegrationTest {
 
         mockMvc.perform(get("/api/knowledge-entries/" + noteId)).andExpect(status().isNotFound());
     }
+
+    @Test
+    void search_matchesTitleCaseInsensitively() throws Exception {
+        // "gate code" appears only in this entry's title, unlike "nucor"
+        // (which also appears in the hazard entry's body text, and would
+        // legitimately return two matches - not a bug, just not a good
+        // fit for a single-result assertion like this one).
+        mockMvc.perform(get("/api/knowledge-entries").param("q", "GATE CODE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].title").value("Nucor Steel gate code"));
+    }
+
+    @Test
+    void search_matchesBodyTextTooCaseInsensitively() throws Exception {
+        // "keypad" only appears in the gate code entry's body, not its title
+        mockMvc.perform(get("/api/knowledge-entries").param("q", "KEYPAD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Nucor Steel gate code"));
+    }
+
+    @Test
+    void search_withNoMatches_returnsEmptyList() throws Exception {
+        mockMvc.perform(get("/api/knowledge-entries").param("q", "no-such-term-exists"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
 }
