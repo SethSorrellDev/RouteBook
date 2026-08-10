@@ -1,5 +1,7 @@
 # RouteBook
 
+![CI](https://github.com/SethSorrellDev/RouteBook/actions/workflows/ci.yml/badge.svg)
+
 **Live app**: https://routebook-frontend.onrender.com
 **Live API**: https://routebook-da3w.onrender.com/api/drivers
 
