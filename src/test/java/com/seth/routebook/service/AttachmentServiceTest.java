@@ -5,6 +5,7 @@ import com.seth.routebook.domain.KnowledgeEntry;
 import com.seth.routebook.exception.FileTooLargeException;
 import com.seth.routebook.exception.UnsupportedFileTypeException;
 import com.seth.routebook.repository.AttachmentRepository;
+import com.seth.routebook.repository.KnowledgeEntryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,7 +20,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 import java.net.URI;
-import java.net.URL;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,9 +29,12 @@ import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for AttachmentService's content-type and size validation -
- * the checks that must run BEFORE any call reaches R2. S3Client and
- * S3Presigner are mocked, so these tests never touch real Cloudflare
- * infrastructure or require R2 credentials.
+ * the checks that must run BEFORE any call reaches the database or R2.
+ * S3Client and S3Presigner are mocked, so these tests never touch real
+ * Cloudflare infrastructure or require R2 credentials. KnowledgeEntryRepository
+ * is mocked directly (not KnowledgeEntryService) since AttachmentService
+ * looks the entry up via the repository, to avoid a circular Spring bean
+ * dependency between RouteService/AttachmentService/KnowledgeEntryService.
  */
 @ExtendWith(MockitoExtension.class)
 class AttachmentServiceTest {
@@ -39,7 +43,7 @@ class AttachmentServiceTest {
     private AttachmentRepository attachmentRepository;
 
     @Mock
-    private KnowledgeEntryService knowledgeEntryService;
+    private KnowledgeEntryRepository knowledgeEntryRepository;
 
     @Mock
     private S3Client r2Client;
@@ -64,7 +68,7 @@ class AttachmentServiceTest {
     }
 
     @Test
-    void upload_withDisallowedContentType_throwsBeforeTouchingR2() {
+    void upload_withDisallowedContentType_throwsBeforeTouchingDbOrR2() {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "malware.exe", "application/x-msdownload", "fake content".getBytes());
 
@@ -72,15 +76,15 @@ class AttachmentServiceTest {
                 .isInstanceOf(UnsupportedFileTypeException.class)
                 .hasMessageContaining("not supported");
 
+        verifyNoInteractions(knowledgeEntryRepository);
         verifyNoInteractions(r2Client);
         verifyNoInteractions(attachmentRepository);
     }
 
     @Test
     void upload_withOversizedPhoto_throwsFileTooLargeException() {
-        when(knowledgeEntryService.getEntityOrThrow(1L)).thenReturn(entry);
-
-        // 26MB of content - over the 25MB photo/document limit
+        // 26MB of content - over the 25MB photo/document limit. Size is
+        // validated before any DB lookup, so no repository stubbing needed.
         byte[] oversized = new byte[26 * 1024 * 1024];
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.jpg", "image/jpeg", oversized);
@@ -89,17 +93,12 @@ class AttachmentServiceTest {
                 .isInstanceOf(FileTooLargeException.class)
                 .hasMessageContaining("25MB");
 
+        verifyNoInteractions(knowledgeEntryRepository);
         verifyNoInteractions(r2Client);
     }
 
     @Test
     void upload_withOversizedVideo_throwsFileTooLargeException() {
-        when(knowledgeEntryService.getEntityOrThrow(1L)).thenReturn(entry);
-
-        // A file just over 25MB is fine for video (limit is 250MB) - use
-        // getSize() override via a lightweight fake rather than allocating
-        // 251MB in a test, since MockMultipartFile derives size from the
-        // actual byte array length.
         byte[] mediumContent = new byte[10];
         MockMultipartFile file = new MockMultipartFile(
                 "file", "clip.mp4", "video/mp4", mediumContent) {
@@ -113,12 +112,13 @@ class AttachmentServiceTest {
                 .isInstanceOf(FileTooLargeException.class)
                 .hasMessageContaining("250MB");
 
+        verifyNoInteractions(knowledgeEntryRepository);
         verifyNoInteractions(r2Client);
     }
 
     @Test
     void upload_withValidPhoto_savesAttachmentAndReturnsPresignedUrl() throws Exception {
-        when(knowledgeEntryService.getEntityOrThrow(1L)).thenReturn(entry);
+        when(knowledgeEntryRepository.findById(1L)).thenReturn(Optional.of(entry));
         when(r2Client.putObject(any(software.amazon.awssdk.services.s3.model.PutObjectRequest.class),
                 any(software.amazon.awssdk.core.sync.RequestBody.class)))
                 .thenReturn(PutObjectResponse.builder().build());

@@ -7,6 +7,7 @@ import com.seth.routebook.exception.FileTooLargeException;
 import com.seth.routebook.exception.ResourceNotFoundException;
 import com.seth.routebook.exception.UnsupportedFileTypeException;
 import com.seth.routebook.repository.AttachmentRepository;
+import com.seth.routebook.repository.KnowledgeEntryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -48,7 +49,7 @@ public class AttachmentService {
     );
 
     private final AttachmentRepository attachmentRepository;
-    private final KnowledgeEntryService knowledgeEntryService;
+    private final KnowledgeEntryRepository knowledgeEntryRepository;
     private final S3Client r2Client;
     private final S3Presigner r2Presigner;
 
@@ -59,16 +60,18 @@ public class AttachmentService {
     private long presignedUrlExpiryMinutes;
 
     public List<AttachmentDto> findAllForKnowledgeEntry(Long knowledgeEntryId) {
-        knowledgeEntryService.getEntityOrThrow(knowledgeEntryId);
+        getKnowledgeEntryOrThrow(knowledgeEntryId);
         return attachmentRepository.findByKnowledgeEntryId(knowledgeEntryId).stream()
                 .map(this::toDto)
                 .toList();
     }
 
     public AttachmentDto upload(Long knowledgeEntryId, MultipartFile file) {
-        KnowledgeEntry entry = knowledgeEntryService.getEntityOrThrow(knowledgeEntryId);
+        // Validate before touching the database or R2 - no reason to pay
+        // for either on a request that's going to be rejected anyway.
         validateContentType(file.getContentType());
         validateFileSize(file.getContentType(), file.getSize());
+        KnowledgeEntry entry = getKnowledgeEntryOrThrow(knowledgeEntryId);
 
         String r2Key = buildR2Key(knowledgeEntryId, file.getOriginalFilename());
 
@@ -107,6 +110,26 @@ public class AttachmentService {
                 .build());
 
         attachmentRepository.delete(attachment);
+    }
+
+    /**
+     * Cascade-delete helper used when a KnowledgeEntry (or its parent
+     * Route/Stop) is deleted - removes every attachment belonging to it,
+     * both the R2 object and the database row, reusing the same
+     * single-attachment delete logic so R2 cleanup never gets missed.
+     */
+    public void deleteAllForKnowledgeEntry(Long knowledgeEntryId) {
+        attachmentRepository.findByKnowledgeEntryId(knowledgeEntryId)
+                .forEach(attachment -> delete(attachment.getId()));
+    }
+
+    // Looks up the entry directly via its repository rather than going
+    // through KnowledgeEntryService, which would create a circular bean
+    // dependency (RouteService -> AttachmentService -> KnowledgeEntryService
+    // -> RouteService).
+    private KnowledgeEntry getKnowledgeEntryOrThrow(Long id) {
+        return knowledgeEntryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No knowledge entry found with id " + id));
     }
 
     private void validateContentType(String contentType) {
