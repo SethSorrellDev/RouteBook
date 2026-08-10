@@ -226,4 +226,26 @@ class RouteBookApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("Integration test note"));
     }
+
+    @Test
+    void verify_withCorrectCredentials_returnsUsername() throws Exception {
+        mockMvc.perform(post("/api/auth/verify")
+                        .with(httpBasic("test-admin", "test-password")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("test-admin"));
+    }
+
+    @Test
+    void verify_withoutCredentials_returns401() throws Exception {
+        mockMvc.perform(post("/api/auth/verify"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Authentication required for this operation"));
+    }
+
+    @Test
+    void verify_withWrongCredentials_returns401() throws Exception {
+        mockMvc.perform(post("/api/auth/verify")
+                        .with(httpBasic("test-admin", "wrong-password")))
+                .andExpect(status().isUnauthorized());
+    }
 }
