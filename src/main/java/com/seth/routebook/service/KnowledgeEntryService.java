@@ -19,6 +19,7 @@ public class KnowledgeEntryService {
     private final KnowledgeEntryRepository knowledgeEntryRepository;
     private final RouteService routeService;
     private final StopService stopService;
+    private final AttachmentService attachmentService;
 
     public List<KnowledgeEntryDto> findFiltered(Long routeId, Long stopId) {
         return knowledgeEntryRepository.findAll().stream()
@@ -29,14 +30,48 @@ public class KnowledgeEntryService {
     }
 
     public KnowledgeEntryDto findById(Long id) {
-        KnowledgeEntry entry = knowledgeEntryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("No knowledge entry found with id " + id));
-        return toDto(entry);
+        return toDto(getEntityOrThrow(id));
     }
 
     public KnowledgeEntryDto create(KnowledgeEntryDto request) {
-        // Authoritative XOR check - this is the real enforcement point.
-        // The @PrePersist on the entity is now just a defense-in-depth backstop.
+        validateExactlyOneTarget(request);
+
+        KnowledgeEntry entry = new KnowledgeEntry();
+        entry.setTitle(request.title());
+        entry.setBody(request.body());
+        entry.setCategory(request.category());
+        applyTarget(entry, request);
+
+        KnowledgeEntry saved = knowledgeEntryRepository.save(entry);
+        return toDto(saved);
+    }
+
+    // Re-validates the XOR rule on update too, since the target (route
+    // vs. stop) can change - not just title/body/category.
+    public KnowledgeEntryDto update(Long id, KnowledgeEntryDto request) {
+        validateExactlyOneTarget(request);
+
+        KnowledgeEntry entry = getEntityOrThrow(id);
+        entry.setTitle(request.title());
+        entry.setBody(request.body());
+        entry.setCategory(request.category());
+        applyTarget(entry, request);
+
+        KnowledgeEntry saved = knowledgeEntryRepository.save(entry);
+        return toDto(saved);
+    }
+
+    /**
+     * Deleting a knowledge entry cascades to its attachments - both the
+     * R2 object and the database row for each one.
+     */
+    public void delete(Long id) {
+        KnowledgeEntry entry = getEntityOrThrow(id);
+        attachmentService.deleteAllForKnowledgeEntry(id);
+        knowledgeEntryRepository.delete(entry);
+    }
+
+    private void validateExactlyOneTarget(KnowledgeEntryDto request) {
         boolean hasRoute = request.routeId() != null;
         boolean hasStop = request.stopId() != null;
         if (hasRoute == hasStop) {
@@ -44,26 +79,23 @@ public class KnowledgeEntryService {
                     "A knowledge entry must target exactly one of routeId or stopId, not both or neither."
             );
         }
+    }
 
-        KnowledgeEntry entry = new KnowledgeEntry();
-        entry.setTitle(request.title());
-        entry.setBody(request.body());
-        entry.setCategory(request.category());
-
-        if (hasRoute) {
+    private void applyTarget(KnowledgeEntry entry, KnowledgeEntryDto request) {
+        if (request.routeId() != null) {
             Route route = routeService.getEntityOrThrow(request.routeId());
             entry.setRoute(route);
+            entry.setStop(null);
         } else {
             Stop stop = stopService.getEntityOrThrow(request.stopId());
             entry.setStop(stop);
+            entry.setRoute(null);
         }
-
-        KnowledgeEntry saved = knowledgeEntryRepository.save(entry);
-        return toDto(saved);
     }
 
-    // Package-private so AttachmentService can link uploads to a
-    // KnowledgeEntry without duplicating the lookup/exception logic.
+    // Package-private so AttachmentService could reuse this lookup if it's
+    // ever refactored; currently AttachmentService uses the repository
+    // directly to avoid a circular bean dependency.
     KnowledgeEntry getEntityOrThrow(Long id) {
         return knowledgeEntryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No knowledge entry found with id " + id));
