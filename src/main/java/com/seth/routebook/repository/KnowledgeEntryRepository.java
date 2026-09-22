@@ -25,8 +25,8 @@ public interface KnowledgeEntryRepository extends JpaRepository<KnowledgeEntry, 
     @Query("SELECT k FROM KnowledgeEntry k WHERE " +
            "(:routeId IS NULL OR k.route.id = :routeId) AND " +
            "(:stopId IS NULL OR k.stop.id = :stopId) AND " +
-           "(:query IS NULL OR LOWER(k.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "OR LOWER(k.body) LIKE LOWER(CONCAT('%', :query, '%')))")
+           "(:query IS NULL OR LOWER(k.title) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) " +
+           "OR LOWER(k.body) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')))")
     List<KnowledgeEntry> search(
             @Param("routeId") Long routeId,
             @Param("stopId") Long stopId,
