@@ -11,21 +11,35 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 /**
  * Reads (GET) are public - anyone can browse the live demo without
- * credentials. Writes (POST/PUT/DELETE) require HTTP Basic auth against
- * a single admin account, provisioned in-memory from environment
- * variables rather than a database-backed user table, since this app
- * has exactly one operator, not a multi-user system.
+ * credentials. Writes (POST/PUT/DELETE) require a valid identity-service
+ * access token whose subject is on this app's admin allowlist.
+ *
+ * Authentication (who are you?) is delegated to identity-service: tokens
+ * are verified against its public JWKS. Authorization (what may you do
+ * here?) stays local to RouteBook.
  */
 @Configuration
 @EnableWebSecurity
@@ -36,28 +50,60 @@ public class SecurityConfig {
     private final ApiAccessDeniedHandler accessDeniedHandler;
     private final CorsConfigurationSource corsConfigurationSource;
 
-    @Value("${app.security.admin-username}")
-    private String adminUsername;
+    @Value("${app.security.jwk-set-uri}")
+    private String jwkSetUri;
 
-    @Value("${app.security.admin-password}")
-    private String adminPassword;
+    @Value("${app.security.issuer}")
+    private String issuer;
 
+    @Value("${app.security.admin-subjects:}")
+    private String adminSubjects;
+
+    /**
+     * Verifies RS256 signature (public key fetched lazily from the JWKS
+     * endpoint, so RouteBook still boots if identity-service is down),
+     * expiry, and issuer. Also rejects anything that isn't an access
+     * token: refresh tokens are signed with the same key, so signature
+     * validity alone would let a refresh token act as an access token.
+     */
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        UserDetails admin = User.withUsername(adminUsername)
-                .password(passwordEncoder.encode(adminPassword))
-                .roles("ADMIN")
+    public JwtDecoder jwtDecoder() {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
+                .jwsAlgorithm(SignatureAlgorithm.RS256)
                 .build();
-        return new InMemoryUserDetailsManager(admin);
+
+        OAuth2TokenValidator<Jwt> accessTokenOnly = jwt ->
+                "access".equals(jwt.getClaimAsString("type"))
+                        ? OAuth2TokenValidatorResult.success()
+                        : OAuth2TokenValidatorResult.failure(
+                                new OAuth2Error("invalid_token", "Not an access token", null));
+
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(issuer), accessTokenOnly));
+        return decoder;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        Set<String> admins = Arrays.stream(adminSubjects.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
+
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            Collection<GrantedAuthority> authorities = admins.contains(jwt.getSubject())
+                    ? List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                    : List.of();
+            return authorities;
+        });
+        return converter;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtAuthenticationConverter jwtAuthenticationConverter)
+            throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -66,9 +112,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/actuator/**", "/h2-console/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().hasRole("ADMIN")
                 )
-                .httpBasic(basic -> basic.authenticationEntryPoint(authenticationEntryPoint))
+                .oauth2ResourceServer(oauth -> oauth
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
