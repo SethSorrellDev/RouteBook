@@ -10,7 +10,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static com.seth.routebook.support.TestAuth.adminJwt;
+import static com.seth.routebook.support.TestAuth.nonAdminJwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -68,7 +69,7 @@ class RouteBookApiIntegrationTest {
     }
 
     @Test
-    void createDriver_withWrongCredentials_returns401() throws Exception {
+    void createDriver_withNonAdminToken_returns403() throws Exception {
         Map<String, Object> newDriver = Map.of(
                 "employeeId", "EMP-9003",
                 "firstName", "Wrong",
@@ -77,10 +78,10 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/drivers")
-                        .with(httpBasic("test-admin", "not-the-real-password"))
+                        .with(nonAdminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newDriver)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -93,7 +94,7 @@ class RouteBookApiIntegrationTest {
         );
 
         String response = mockMvc.perform(post("/api/drivers")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newDriver)))
                 .andExpect(status().isOk())
@@ -116,7 +117,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/routes")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newRoute)))
                 .andExpect(status().isNotFound())
@@ -134,7 +135,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badEntry)))
                 .andExpect(status().isBadRequest())
@@ -151,7 +152,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badEntry)))
                 .andExpect(status().isBadRequest())
@@ -168,7 +169,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badEntry)))
                 .andExpect(status().isBadRequest())
@@ -191,7 +192,7 @@ class RouteBookApiIntegrationTest {
         );
 
         String stopResponse = mockMvc.perform(post("/api/routes/1/stops")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newStop)))
                 .andExpect(status().isOk())
@@ -207,7 +208,7 @@ class RouteBookApiIntegrationTest {
         );
 
         mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newEntry)))
                 .andExpect(status().isOk())
@@ -221,9 +222,9 @@ class RouteBookApiIntegrationTest {
     @Test
     void verify_withCorrectCredentials_returnsUsername() throws Exception {
         mockMvc.perform(post("/api/auth/verify")
-                        .with(httpBasic("test-admin", "test-password")))
+                        .with(adminJwt()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("test-admin"));
+                .andExpect(jsonPath("$.username").value("test-admin-subject"));
     }
 
     @Test
@@ -234,10 +235,10 @@ class RouteBookApiIntegrationTest {
     }
 
     @Test
-    void verify_withWrongCredentials_returns401() throws Exception {
+    void verify_withNonAdminToken_returns403() throws Exception {
         mockMvc.perform(post("/api/auth/verify")
-                        .with(httpBasic("test-admin", "wrong-password")))
-                .andExpect(status().isUnauthorized());
+                        .with(nonAdminJwt()))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -250,7 +251,7 @@ class RouteBookApiIntegrationTest {
     void updateRoute_changesNameAndDescription() throws Exception {
         Map<String, Object> newRoute = Map.of("name", "Route to Update", "description", "Original");
         String createResponse = mockMvc.perform(post("/api/routes")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newRoute)))
                 .andReturn().getResponse().getContentAsString();
@@ -258,7 +259,7 @@ class RouteBookApiIntegrationTest {
 
         Map<String, Object> updateRequest = Map.of("name", "Updated Name", "description", "Updated description");
         mockMvc.perform(put("/api/routes/" + routeId)
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
@@ -273,7 +274,7 @@ class RouteBookApiIntegrationTest {
         // shared seeded data other tests in this class depend on.
         Map<String, Object> newRoute = Map.of("name", "Route to Delete", "description", "temp");
         String routeResponse = mockMvc.perform(post("/api/routes")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newRoute)))
                 .andReturn().getResponse().getContentAsString();
@@ -284,7 +285,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> newStop = Map.of(
                 "customerName", "Delete Test Stop", "sequenceOrder", 1, "location", newLocation);
         String stopResponse = mockMvc.perform(post("/api/routes/" + routeId + "/stops")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newStop)))
                 .andReturn().getResponse().getContentAsString();
@@ -293,7 +294,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> routeNote = Map.of(
                 "title", "Route note", "body", "x", "category", "OTHER", "routeId", routeId);
         String routeNoteResponse = mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(routeNote)))
                 .andReturn().getResponse().getContentAsString();
@@ -302,7 +303,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> stopNote = Map.of(
                 "title", "Stop note", "body", "x", "category", "OTHER", "stopId", stopId);
         String stopNoteResponse = mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(stopNote)))
                 .andReturn().getResponse().getContentAsString();
@@ -310,7 +311,7 @@ class RouteBookApiIntegrationTest {
 
         // Delete the route - should cascade through everything above.
         mockMvc.perform(delete("/api/routes/" + routeId)
-                        .with(httpBasic("test-admin", "test-password")))
+                        .with(adminJwt()))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/routes/" + routeId)).andExpect(status().isNotFound());
@@ -326,7 +327,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> newStop = Map.of(
                 "customerName", "Original Name", "sequenceOrder", 5, "location", newLocation);
         String stopResponse = mockMvc.perform(post("/api/routes/1/stops")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newStop)))
                 .andReturn().getResponse().getContentAsString();
@@ -336,7 +337,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> updateRequest = Map.of(
                 "customerName", "Renamed Customer", "sequenceOrder", 9, "locationId", locationId);
         mockMvc.perform(put("/api/stops/" + stopId)
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
@@ -351,7 +352,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> newStop = Map.of(
                 "customerName", "Stop To Delete", "sequenceOrder", 1, "location", newLocation);
         String stopResponse = mockMvc.perform(post("/api/routes/1/stops")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newStop)))
                 .andReturn().getResponse().getContentAsString();
@@ -360,14 +361,14 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> note = Map.of(
                 "title", "Note on stop to delete", "body", "x", "category", "OTHER", "stopId", stopId);
         String noteResponse = mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(note)))
                 .andReturn().getResponse().getContentAsString();
         int noteId = objectMapper.readTree(noteResponse).get("id").asInt();
 
         mockMvc.perform(delete("/api/stops/" + stopId)
-                        .with(httpBasic("test-admin", "test-password")))
+                        .with(adminJwt()))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/stops/" + stopId)).andExpect(status().isNotFound());
@@ -379,7 +380,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> note = Map.of(
                 "title", "Retargetable note", "body", "x", "category", "OTHER", "routeId", 1);
         String noteResponse = mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(note)))
                 .andReturn().getResponse().getContentAsString();
@@ -388,7 +389,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> updateRequest = Map.of(
                 "title", "Now targets a stop", "body", "y", "category", "HAZARD", "stopId", 1);
         mockMvc.perform(put("/api/knowledge-entries/" + noteId)
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isOk())
@@ -402,7 +403,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> note = Map.of(
                 "title", "Note", "body", "x", "category", "OTHER", "routeId", 1);
         String noteResponse = mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(note)))
                 .andReturn().getResponse().getContentAsString();
@@ -411,7 +412,7 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> badUpdate = Map.of(
                 "title", "Bad", "body", "x", "category", "OTHER", "routeId", 1, "stopId", 1);
         mockMvc.perform(put("/api/knowledge-entries/" + noteId)
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badUpdate)))
                 .andExpect(status().isBadRequest());
@@ -422,14 +423,14 @@ class RouteBookApiIntegrationTest {
         Map<String, Object> note = Map.of(
                 "title", "Note to delete", "body", "x", "category", "OTHER", "routeId", 1);
         String noteResponse = mockMvc.perform(post("/api/knowledge-entries")
-                        .with(httpBasic("test-admin", "test-password"))
+                        .with(adminJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(note)))
                 .andReturn().getResponse().getContentAsString();
         int noteId = objectMapper.readTree(noteResponse).get("id").asInt();
 
         mockMvc.perform(delete("/api/knowledge-entries/" + noteId)
-                        .with(httpBasic("test-admin", "test-password")))
+                        .with(adminJwt()))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/knowledge-entries/" + noteId)).andExpect(status().isNotFound());
