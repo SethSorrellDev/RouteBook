@@ -17,7 +17,7 @@ When an SSR route gets reassigned, the knowledge that made the outgoing driver e
 
 ## Tech stack
 
-- **Backend**: Spring Boot 3.5.16, Java 21 (target), Spring Data JPA, Spring Security, Bean Validation
+- **Backend**: Spring Boot 3.5.16, Java 21 (target), Spring Data JPA, Spring Security (OAuth2 resource server), Bean Validation
 - **Database**: PostgreSQL in production; H2 (in-memory) for local development and tests
 - **File storage**: Cloudflare R2 (S3-compatible) via AWS SDK v2, for attachment photos/PDFs/documents/videos
 - **Build**: Maven, containerized with Docker for deployment
@@ -33,9 +33,21 @@ Companion frontend: [routebook-frontend](https://github.com/SethSorrellDev/route
 - **Atomic writes** — creating a stop (which requires a new Location) happens in a single `@Transactional` operation, so a failure partway through can never leave orphaned data
 - **File attachments** — photos, PDFs, Word docs, plain text, spreadsheets, and videos, stored in Cloudflare R2, served via time-limited presigned URLs. Verified end-to-end against a live bucket, including real uploads through the live app.
 - **Real server-side search** — a database-level, case-insensitive query on title/body text, not a fetch-everything-and-filter approach
-- **Authentication** — public read access for browsing; HTTP Basic auth gates every write operation, with a dedicated `/api/auth/verify` endpoint so clients can confirm credentials are correct rather than assume so
+- **Authentication** — public read access for browsing; every write requires a valid access token from a shared identity service (RS256, verified against its public JWKS), and RouteBook decides which users may write from its own allowlist. RouteBook holds no passwords and no signing keys.
 - **Structured error handling** — every API error returns a consistent `{status, message, timestamp, fieldErrors}` shape
 - **Content-type and size validation** — 25MB cap for photos/documents, 250MB for videos, with an explicit content-type whitelist
+
+## Authentication and configuration
+
+Sign-in is handled by a separate identity service that also backs my other portfolio apps. RouteBook only verifies the tokens it issues: signature, issuer, expiry, and that the token is an access token rather than a refresh token. Reads are public. Writes (POST/PUT/DELETE) need `ROLE_ADMIN`, which a user gets only when their token `sub` is listed in `ADMIN_SUBJECTS`. If that list is empty, nobody can write.
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `IDENTITY_JWKS_URI` | Where to fetch the identity service's public keys | `http://localhost:8081/.well-known/jwks.json` |
+| `IDENTITY_ISSUER` | Expected token issuer | `identity-service` |
+| `ADMIN_SUBJECTS` | Comma-separated user IDs allowed to write | empty |
+
+The identity service runs on a free Render instance that sleeps when idle, so the first sign-in after a quiet period can take a minute.
 
 ## Documentation
 
