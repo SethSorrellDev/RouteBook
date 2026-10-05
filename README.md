@@ -51,6 +51,18 @@ Sign-in is handled by a separate identity service that also backs my other portf
 
 The identity service runs on an always-on paid instance, so sign-in doesn't wait on a cold start.
 
+## Sample data
+
+`scripts/seed_sample.py` loads a fully fictional data set (two routes, six stops, fourteen notes across every category, one generated image attachment) through the public API, so the live app never has to hold real customer details. Every name, address, phone number and "code" in `scripts/sample_data.json` is invented. It is standard-library Python: it signs in through the identity service as a writer account, skips anything that already exists, and `--remove` deletes the sample routes (their stops, notes and attachments go with them).
+
+```bash
+export ROUTEBOOK_URL=https://routebook-da3w.onrender.com
+export IDENTITY_URL=https://identity-service-c5ab.onrender.com
+export SEED_EMAIL=you@example.com          # an account listed in ADMIN_SUBJECTS
+python3 scripts/seed_sample.py             # prompts for the password
+python3 -m unittest scripts/test_seed_sample.py   # checks the script against a stub API
+```
+
 ## Documentation
 
 - [SETUP.md](SETUP.md) — getting the backend running locally, environment variables, testing

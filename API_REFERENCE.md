@@ -62,7 +62,7 @@ Returns all stops for a route, ordered by `sequenceOrder` is *not* guaranteed by
 ### `POST /api/routes/{routeId}/stops`
 ```json
 {
-  "customerName": "Nucor Steel",
+  "customerName": "Ridgeline Steel",
   "sequenceOrder": 1,
   "locationId": 1
 }
@@ -100,8 +100,8 @@ Both query params are optional filters; omit both to get every entry.
 ### `POST /api/knowledge-entries`
 ```json
 {
-  "title": "Nucor Steel gate code",
-  "body": "Main gate keypad code is 4471#. Resets monthly.",
+  "title": "Ridgeline Steel gate code",
+  "body": "Main gate keypad code is 0000#. Resets monthly.",
   "category": "GATE_CODE",
   "routeId": null,
   "stopId": 1
@@ -138,5 +138,6 @@ Deletes both the R2 object and the database record. Returns 204 on success, 404 
 ## Notes for API consumers
 
 - All DTOs are flat — related entities are referenced by ID only (e.g. `RouteDto.driverId`, not a nested driver object). Fetch related resources separately if you need their details.
-- There is no authentication currently. Every endpoint is open.
+- Reads (`GET /api/**`) are public. Every write (POST, PUT, DELETE) needs `Authorization: Bearer <access token>` from the shared identity service, and the token's subject must be on the backend's `ADMIN_SUBJECTS` allowlist; otherwise the API returns 401/403. See the README for configuration.
+- Routes, stops and knowledge entries also support `PUT /{id}` and `DELETE /{id}` (`/api/routes`, `/api/stops`, `/api/knowledge-entries`); deleting a route or stop cascades to its entries and attachments.
 - The in-memory H2 database resets on every backend restart — don't rely on data persisting across restarts in a dev environment.

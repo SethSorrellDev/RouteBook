@@ -1,0 +1,73 @@
+{
+  "routes": [
+    {
+      "name": "Sample Route 12 - North Loop",
+      "description": "Fictional normal route: industrial park, a food plant and two small offices.",
+      "notes": [
+        {"title": "Steel-toe boots on this route", "category": "HAZARD",
+         "body": "Ridgeline Steel and Harbor Point Foods both require steel-toe boots and a hard hat for dock access. Keep both in the van."},
+        {"title": "Route runs tight on Fridays", "category": "OTHER",
+         "body": "Volume is heaviest Friday. Start with Harbor Point Foods before 8:00 so the dock is clear."}
+      ],
+      "stops": [
+        {"customerName": "Ridgeline Steel", "sequenceOrder": 1,
+         "location": {"addressLine1": "100 Sample Industrial Pkwy", "city": "Exampleton", "state": "IN", "zipCode": "46000", "latitude": 40.2975, "longitude": -86.5701},
+         "notes": [
+           {"title": "Gate keypad", "category": "GATE_CODE",
+            "body": "Main gate keypad code is 0000#. (Sample value, not a real code.) Resets monthly - confirm with the dock supervisor if it does not work."},
+           {"title": "Dock supervisor", "category": "CONTACT",
+            "body": "Dana Reyes, 555-0101. On site 6:00 to 14:30. Ask for her before using dock door 3.",
+            "attach": "gate-photo"},
+           {"title": "Hard hat zone", "category": "HAZARD",
+            "body": "Hard hat required past the yellow line. Forklift traffic is constant between dock doors 2 and 4."}
+         ]},
+        {"customerName": "Harbor Point Foods", "sequenceOrder": 2,
+         "location": {"addressLine1": "220 Sample Mill St", "city": "Exampleton", "state": "IN", "zipCode": "46000", "latitude": 40.3101, "longitude": -86.5522},
+         "notes": [
+           {"title": "Parking", "category": "PARKING",
+            "body": "Do not park in front of the dock doors - loading trucks need that space. Park along the fence line to the east instead."},
+           {"title": "Hairnet and smock", "category": "ACCESS",
+            "body": "Hairnet and beard net required past the lobby. Spares are in the box by the sign-in desk."}
+         ]},
+        {"customerName": "Maple Court Dental", "sequenceOrder": 3,
+         "location": {"addressLine1": "5 Sample Maple Ct", "city": "Exampleton", "state": "IN", "zipCode": "46000", "latitude": 40.3188, "longitude": -86.5390},
+         "notes": [
+           {"title": "Front desk drop", "category": "ACCESS",
+            "body": "Leave the bag with the front desk. Back door is staff only and locked after 9:00."}
+         ]}
+      ]
+    },
+    {
+      "name": "Sample Route 18 - South Corridor",
+      "description": "Fictional route: school, tire shop and a bakery with an early window.",
+      "notes": [
+        {"title": "School delivery window", "category": "ACCESS",
+         "body": "Pinecrest Elementary only accepts deliveries between 6:30 and 9:00. Check in at the office first."}
+      ],
+      "stops": [
+        {"customerName": "Pinecrest Elementary", "sequenceOrder": 1,
+         "location": {"addressLine1": "900 Sample School Rd", "city": "Pinecrest", "state": "IN", "zipCode": "46001", "latitude": 40.2410, "longitude": -86.5920},
+         "notes": [
+           {"title": "Check in at the office", "category": "ACCESS",
+            "body": "Sign in at the front office and wear the visitor badge. Deliver to the custodian closet by the gym."},
+           {"title": "Bus loop", "category": "HAZARD",
+            "body": "Bus loop is busy 7:15 to 8:00. Use the side lot and walk the cart across at the crosswalk."}
+         ]},
+        {"customerName": "Summit Tire & Lube", "sequenceOrder": 2,
+         "location": {"addressLine1": "88 Sample Tire Row", "city": "Southford", "state": "IN", "zipCode": "46010", "latitude": 40.2255, "longitude": -86.5304},
+         "notes": [
+           {"title": "Shop foreman", "category": "CONTACT",
+            "body": "Rick Dalton, 555-0114. Call when you pull in; he opens bay 2 for the drop."}
+         ]},
+        {"customerName": "Eastwind Bakery", "sequenceOrder": 3,
+         "location": {"addressLine1": "12 Sample Baker St", "city": "Southford", "state": "IN", "zipCode": "46010", "latitude": 40.2142, "longitude": -86.5115},
+         "notes": [
+           {"title": "Back door, before 11:00", "category": "GATE_CODE",
+            "body": "Back door keypad is 1111*. (Sample value, not a real code.) Deliver before the lunch rush."},
+           {"title": "Alley parking", "category": "PARKING",
+            "body": "The alley fits one van. Do not block the flour delivery bay on Tuesday and Thursday mornings."}
+         ]}
+      ]
+    }
+  ]
+}
