@@ -5,7 +5,9 @@
 **Live app**: https://routebook-frontend.onrender.com
 **Live API**: https://routebook-da3w.onrender.com/api/drivers
 
-Both hosted on Render's free tier — services spin down after 15 minutes of inactivity, so the first request after idle time may take 30-60 seconds to wake up.
+Both hosted on Render's free tier — services spin down after 15 minutes of inactivity, so the first request after idle time may take 30-60 seconds to wake up. The shared identity service that handles sign-in runs on an always-on paid instance, so sign-in itself never waits on a cold start.
+
+**Demo access:** available on request. Browsing needs no sign-in at all; the demo sign-in can read but not edit.
 
 ![RouteBook route list](docs/screenshots/routes-list.png)
 
@@ -47,7 +49,7 @@ Sign-in is handled by a separate identity service that also backs my other portf
 | `IDENTITY_ISSUER` | Expected token issuer | `identity-service` |
 | `ADMIN_SUBJECTS` | Comma-separated user IDs allowed to write | empty |
 
-The identity service runs on a free Render instance that sleeps when idle, so the first sign-in after a quiet period can take a minute.
+The identity service runs on an always-on paid instance, so sign-in doesn't wait on a cold start.
 
 ## Documentation
 
@@ -69,6 +71,6 @@ Deployed on Render: the backend as a Dockerized web service connected to a manag
 
 ## Known limitations
 
-- **Single admin account, no multi-user management** — an intentional design choice. This app has one operator (an SSR or a small team), not a multi-tenant user base, so a full user/role system would be over-engineering for the actual use case.
+- **Writers are a short allowlist, not a managed user base** — an intentional design choice. Anyone can read; only the identity-service users listed in `ADMIN_SUBJECTS` can write, and that list is changed through configuration rather than an in-app admin screen. This app has one operator (an SSR or a small team), not a multi-tenant user base, so a full user/role system would be over-engineering for the actual use case.
 - **Split-repo structure** (backend and frontend as separate GitHub repos, rather than a monorepo) — a deliberate choice to mirror independent deployment (they're deployed as two separate Render services, versioned and released independently), at the cost of cross-repo documentation links needing full URLs instead of relative paths, and slightly more overhead keeping both repos' CI/docs in sync.
-- **Free-tier hosting** — cold starts after inactivity, and the free Postgres instance has a periodic renewal requirement.
+- **Free-tier hosting** — cold starts after inactivity, and the free Postgres instance expires on a fixed schedule and has to be renewed.
